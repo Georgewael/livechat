@@ -18,7 +18,7 @@ const io     = new Server(server, {
   pingInterval: 10000,
 });
 
-app.use(helmet({ contentSecurityPolicy: false })); // contentSecurityPolicy=false عشان Socket.io يشتغل
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -77,32 +77,27 @@ const lockedPrivate = new Set();
 const roomOperators = {}; // roomId → Set of usernames (IRC-style ops)
 
 // ===================== مكافحة السبام =====================
-// username → { lastMsgs: [], mutedUntil }
 const spamTracker = {};
 
 // ===================== فلتر الكلمات والروابط =====================
 const chatFilter = {
-  words: [],          // كلمات محظورة
-  linksBlocked: true, // مانع روابط افتراضي: شغال
+  words: [],
+  linksBlocked: true,
 };
 
-// الأدوار اللي مش بيتأثروا بالفلتر
 const FILTER_EXEMPT = ['owner', 'admin'];
 
 const URL_REGEX = /((https?:\/\/|www\.)[^\s]+|[a-zA-Z0-9\-]+\.(com|net|org|io|co|me|tv|ly|app|link|chat|site|xyz|online|store|info|club|live)\b[^\s]*)/gi;
 
 function filterMessage(text, role) {
-  // لو الدور معفي، رجّع النص زي ما هو
   if (FILTER_EXEMPT.includes(role)) return { ok: true, text };
 
-  // مانع الروابط
   if (chatFilter.linksBlocked && URL_REGEX.test(text)) {
     URL_REGEX.lastIndex = 0;
     return { ok: false, ban: false, reason: '🚫 الروابط ممنوعة في هذا الشات' };
   }
   URL_REGEX.lastIndex = 0;
 
-  // فلتر الكلمات — طرد وبان فوري
   for (const word of chatFilter.words) {
     if (!word) continue;
     const re = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
@@ -119,18 +114,15 @@ function checkSpam(username, text) {
   if (!spamTracker[username]) spamTracker[username] = { lastMsgs: [] };
   const tracker = spamTracker[username];
 
-  // لو كاتم بسبب سبام
   if (tracker.mutedUntil && now < tracker.mutedUntil) return true;
 
-  // احتفظ بآخر 3 رسائل في آخر 5 ثواني
   tracker.lastMsgs = tracker.lastMsgs.filter(m => now - m.time < 5000);
   tracker.lastMsgs.push({ text, time: now });
 
-  // لو 3 رسائل متطابقة → سبام
   if (tracker.lastMsgs.length >= 3) {
     const allSame = tracker.lastMsgs.every(m => m.text === text);
     if (allSame) {
-      tracker.mutedUntil = now + 30000; // كتم 30 ثانية
+      tracker.mutedUntil = now + 30000;
       tracker.lastMsgs = [];
       return true;
     }
@@ -189,7 +181,6 @@ function isRoomOp(roomId, username) {
   return getRoomOps(roomId).has(username);
 }
 
-// الرتب اللي بتدي op تلقائي في كل الغرف
 const AUTO_OP_ROLES = ['owner', 'admin', 'moderator', 'host'];
 
 function hasRoomOp(user) {
@@ -197,9 +188,7 @@ function hasRoomOp(user) {
   return AUTO_OP_ROLES.includes(user.role) || isRoomOp(user.room, user.username);
 }
 
-// لما المالك يضيف ادمن/هوست/أونر → يتحذف ops الزائر تلقائي لأنهم بقوا auto-op
 function cleanGuestOpsOnRoleChange(username) {
-  // لو بقى auto-op بسبب الرتبة الجديدة، نشيله من manual ops عشان يتبع الـ role
   Object.keys(roomOperators).forEach(roomId => {
     roomOperators[roomId]?.delete(username);
   });
@@ -221,7 +210,6 @@ app.get('/api/owner/users', authenticateOwner, (req, res) => {
   res.json({ ok: true, users: db.getAllUsers() });
 });
 
-// المالك يشوف الأعضاء الأونلاين مع الـ IP وكل البيانات
 app.get('/api/owner/online', authenticateOwner, (req, res) => {
   const users = Object.values(onlineUsers).map(u => ({
     username:   u.username,
@@ -229,30 +217,26 @@ app.get('/api/owner/online', authenticateOwner, (req, res) => {
     room:       u.room,
     isGuest:    u.isGuest,
     muted:      u.muted,
-    ip:         u.ip,            // ✅ المالك بس يشوف الـ IP
-    deviceInfo: u.deviceInfo,    // ✅ المالك بس يشوف نوع الجهاز
+    ip:         u.ip,
+    deviceInfo: u.deviceInfo,
     fingerprint: u.fingerprint,
     joinedAt:   u.joinedAt,
   }));
   res.json({ ok: true, users });
 });
 
-// المحادثات الخاصة (مفككة التشفير للمالك)
 app.get('/api/owner/private-chats', authenticateOwner, (req, res) => {
   res.json({ ok: true, chats: db.getAllPrivateChats() });
 });
 
-// قائمة الـ IPs المحظورة
 app.get('/api/owner/banned-ips', authenticateOwner, (req, res) => {
   res.json({ ok: true, ips: db.getAllBannedIPs() });
 });
 
-// حظر بالـ IP
 app.post('/api/owner/ban-ip', authenticateOwner, (req, res) => {
   const { ip, reason } = req.body || {};
   if (!ip) return res.json({ ok: false, error: 'IP مطلوب' });
   db.banIP(ip, reason);
-  // طرد أي حد أونلاين بنفس الـ IP
   Object.values(onlineUsers).forEach(u => {
     if (u.ip === ip) {
       io.to(u.socketId).emit('kicked', { reason: 'تم حظرك' });
@@ -262,7 +246,6 @@ app.post('/api/owner/ban-ip', authenticateOwner, (req, res) => {
   res.json({ ok: true });
 });
 
-// رفع حظر الـ IP
 app.post('/api/owner/unban-ip', authenticateOwner, (req, res) => {
   const { ip } = req.body || {};
   res.json(db.unbanIP(ip));
@@ -277,7 +260,6 @@ app.post('/api/owner/ban-serial', authenticateOwner, (req, res) => {
   const { serial, reason } = req.body || {};
   if (!serial) return res.json({ ok: false, error: 'serial مطلوب' });
   db.banSerial(serial, reason);
-  // طرد المستخدم الأونلاين اللي عنده نفس الـ serial
   Object.values(onlineUsers).forEach(u => {
     if (u.deviceInfo?.serial === serial || u.fingerprint === serial) {
       u.socket?.emit('auth_error', '🚫 أنت محظور');
@@ -295,13 +277,11 @@ app.post('/api/owner/unban-serial', authenticateOwner, (req, res) => {
 app.post('/api/owner/set-role', authenticateOwner, (req, res) => {
   const { username, role, requestedBy } = req.body || {};
 
-  // ✅ حماية المالك الأصلي — محدش يقدر يغير رتبته حتى لو هو نفسه
   const realOwner = db.getRealOwnerUsername();
   if (username === realOwner) {
     return res.json({ ok: false, error: '❌ لا يمكن تغيير رتبة المالك الأصلي' });
   }
 
-  // ✅ قواعد الترقية — كل رتبة ترفع/تخفض الرتبة اللي تحتها مباشرة بس
   const RANK = { owner: 0, admin: 1, moderator: 2, host: 3, vip: 4, member: 5, guest: 6 };
   const requesterUser = findUserByName(requestedBy);
   const requesterRole = requesterUser ? requesterUser.role : null;
@@ -312,12 +292,10 @@ app.post('/api/owner/set-role', authenticateOwner, (req, res) => {
     const newRoleRank = RANK[role];
     const requesterRank = RANK[requesterRole];
 
-    // الرتبة اللي يقدر يديها = اللي تحته مباشرة بس
     const allowedRank = requesterRank + 1;
     if (newRoleRank !== allowedRank) {
       return res.json({ ok: false, error: '❌ تقدر تغير الرتبة اللي تحتك مباشرة بس' });
     }
-    // كمان لازم الشخص المستهدف يكون تحته
     if (targetRole && RANK[targetRole] <= requesterRank) {
       return res.json({ ok: false, error: '❌ لا يمكن تغيير رتبة شخص في نفس مستواك أو أعلى' });
     }
@@ -328,7 +306,6 @@ app.post('/api/owner/set-role', authenticateOwner, (req, res) => {
     const u = findUserByName(username);
     if (u) {
       u.role = role;
-      // لو بقى auto-op بسبب الرتبة، نشيله من manual ops
       cleanGuestOpsOnRoleChange(username);
       io.to(u.room).emit('members_update', getMemberList(u.room));
       io.to(u.socketId).emit('your_role_updated', { role });
@@ -338,12 +315,10 @@ app.post('/api/owner/set-role', authenticateOwner, (req, res) => {
 });
 
 // ===================== Room Operators API =====================
-// إضافة op لغرفة
 app.post('/api/owner/room-op/add', authenticateOwner, (req, res) => {
   const { username, roomId } = req.body || {};
   if (!username || !roomId) return res.json({ ok: false, error: 'بيانات ناقصة' });
   getRoomOps(roomId).add(username);
-  // إبلاغ اليوزر لو أونلاين
   const u = findUserByName(username);
   if (u) {
     io.to(u.socketId).emit('room_op_granted', { roomId });
@@ -352,7 +327,6 @@ app.post('/api/owner/room-op/add', authenticateOwner, (req, res) => {
   res.json({ ok: true });
 });
 
-// إزالة op من غرفة
 app.post('/api/owner/room-op/remove', authenticateOwner, (req, res) => {
   const { username, roomId } = req.body || {};
   if (!username || !roomId) return res.json({ ok: false, error: 'بيانات ناقصة' });
@@ -365,7 +339,6 @@ app.post('/api/owner/room-op/remove', authenticateOwner, (req, res) => {
   res.json({ ok: true });
 });
 
-// قايمة الـ ops لكل الغرف
 app.get('/api/owner/room-ops', authenticateOwner, (req, res) => {
   const result = {};
   Object.keys(roomOperators).forEach(roomId => {
@@ -393,7 +366,6 @@ app.post('/api/owner/ban', authenticateOwner, (req, res) => {
   db.banUser(username);
   const u = findUserByName(username);
   if (u) {
-    // حظر الـ IP والـ Serial تلقائياً لو المالك طلب (حظر شامل)
     if (shouldBanIP && u.ip) db.banIP(u.ip, `محظور مع ${username}`);
     if (shouldBanIP && u.deviceInfo?.serial) db.banSerial(u.deviceInfo.serial, `محظور مع ${username}`);
     if (shouldBanIP && u.fingerprint) db.banSerial(u.fingerprint, `محظور مع ${username}`);
@@ -480,11 +452,9 @@ app.post('/api/owner/filter/links', authenticateOwner, (req, res) => {
 // ===================== Socket.io =====================
 io.on('connection', (socket) => {
 
-  // استخراج الـ IP الحقيقي
   const ip = socket.handshake.headers['x-forwarded-for']?.split(',')[0].trim()
            || socket.handshake.address;
 
-  // فحص حظر الـ IP قبل أي حاجة
   if (db.isIPBanned(ip)) {
     socket.emit('auth_error', 'أنت محظور');
     socket.disconnect(true);
@@ -495,7 +465,6 @@ io.on('connection', (socket) => {
     let user;
 
     if (data.isGuest) {
-      // فحص الـ Serial
       const serial = data.deviceInfo?.serial || data.fingerprint || '';
       if (serial && db.isSerialBanned(serial)) {
         socket.emit('auth_error', '🚫 أنت محظور');
@@ -516,9 +485,9 @@ io.on('connection', (socket) => {
         isGuest:     true,
         room:        initRoomGuest,
         muted:       false,
-        ip:          ip,                         // ✅ محفوظ للمالك
-        deviceInfo:  data.deviceInfo || {},      // ✅ محفوظ للمالك
-        fingerprint: data.fingerprint || '',     // ✅ محفوظ للمالك
+        ip:          ip,
+        deviceInfo:  data.deviceInfo || {},
+        fingerprint: data.fingerprint || '',
         joinedAt:    Date.now(),
       };
     } else {
@@ -542,9 +511,9 @@ io.on('connection', (socket) => {
         isGuest:     false,
         room:        initRoomMember,
         muted:       false,
-        ip:          ip,                         // ✅ محفوظ للمالك
-        deviceInfo:  data.deviceInfo || {},      // ✅ محفوظ للمالك
-        fingerprint: data.fingerprint || '',     // ✅ محفوظ للمالك
+        ip:          ip,
+        deviceInfo:  data.deviceInfo || {},
+        fingerprint: data.fingerprint || '',
         joinedAt:    Date.now(),
       };
     }
@@ -553,16 +522,16 @@ io.on('connection', (socket) => {
     onlineUsers[socket.id] = user;
     socket.join(initRoom);
 
+    // ✅ التعديل الأول: استبدال messages: [] بـ db.getRoomMessages(initRoom)
     socket.emit('joined', {
       user: {
         username:  user.username,
         role:      user.role,
         nameColor: user.nameColor,
         isGuest:   user.isGuest,
-        // ❌ مفيش IP هنا
       },
       rooms:    getRoomList(),
-      messages: [],
+      messages: db.getRoomMessages(initRoom),
       members:  getMemberList(initRoom),
       voiceEnabled: voiceSettings.enabled,
       voiceAllowed: user.role === 'owner' || voiceSettings.allowedUsers.has(user.username),
@@ -586,10 +555,11 @@ io.on('connection', (socket) => {
     io.to(old).emit('members_update', getMemberList(old));
     user.room = roomId;
     socket.join(roomId);
+    // ✅ التعديل الثاني: استبدال messages: [] بـ db.getRoomMessages(roomId)
     socket.emit('room_changed', {
       roomId,
       roomName: liveRooms[roomId].name,
-      messages: [],
+      messages: db.getRoomMessages(roomId),
       members:  getMemberList(roomId),
     });
     io.to(roomId).emit('members_update', getMemberList(roomId));
@@ -617,12 +587,10 @@ io.on('connection', (socket) => {
     const text = ((data && data.text) || '').trim().slice(0, 500);
     if (!text) return;
 
-    // فلتر الكلمات والروابط
     const filterResult = filterMessage(text, user.role);
     if (!filterResult.ok) {
       socket.emit('filter_block', { msg: filterResult.reason });
       if (filterResult.ban) {
-        // بان تلقائي
         if (!user.isGuest) db.banUser(user.username);
         setTimeout(() => {
           io.to(socket.id).emit('kicked', { reason: filterResult.reason });
@@ -633,7 +601,6 @@ io.on('connection', (socket) => {
     }
     const cleanText = filterResult.text;
 
-    // فحص السبام
     if (checkSpam(user.username, cleanText)) {
       socket.emit('spam_warning', { msg: '⚠️ أرسلت نفس الرسالة أكتر من مرة. تم كتمك 30 ثانية.' });
       user.muted = true;
@@ -658,6 +625,10 @@ io.on('connection', (socket) => {
       time:      Date.now(),
     };
     liveRooms[user.room].messages.push(msg);
+
+    // ✅ التعديل الثالث: حفظ الرسالة في قاعدة البيانات
+    db.saveRoomMessage(user.room, user.username, user.role, user.nameColor, cleanText);
+
     if (liveRooms[user.room].messages.length > 300)
       liveRooms[user.room].messages.shift();
     io.to(user.room).emit('message', msg);
@@ -669,7 +640,6 @@ io.on('connection', (socket) => {
     const text = ((data && data.text) || '').trim().slice(0, 500);
     if (!text || !data.to) return;
 
-    // فلتر الكلمات والروابط في الخاص
     const filterResult = filterMessage(text, sender.role);
     if (!filterResult.ok) {
       socket.emit('filter_block', { msg: filterResult.reason });
@@ -703,7 +673,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // حفظ الرسالة مشفرة في قاعدة البيانات
     db.savePrivateMsg(sender.username, data.to, cleanText);
 
     const msg = { from: sender.username, to: data.to, text: cleanText, time: Date.now() };
@@ -792,7 +761,6 @@ io.on('connection', (socket) => {
     } else {
       if (!canActOn(admin.role, target.role)) return;
     }
-    // باند IP عشوائي مع الطرد
     if (target.ip) db.banIP(target.ip, `محظور بواسطة ${admin.username}`);
     io.to(target.socketId).emit('kicked', { reason: 'تم طردك وحظرك من الشات' });
     io.sockets.sockets.get(target.socketId)?.disconnect(true);
@@ -870,13 +838,11 @@ io.on('connection', (socket) => {
     const sender = onlineUsers[socket.id];
     if (!sender) return;
 
-    // فحص: هل الميزة مفعّلة؟
     if (!voiceSettings.enabled) {
       socket.emit('perm_error', { action: 'voice', msg: '🎙️ ميزة الفويس نوت غير مفعّلة حالياً' });
       return;
     }
 
-    // فحص: هل المستخدم مسموح له بالفويس؟ (المالك دايماً مسموح)
     const canVoice = sender.role === 'owner' || voiceSettings.allowedUsers.has(sender.username);
     if (!canVoice) {
       socket.emit('perm_error', { action: 'voice', msg: '🎙️ لا تملك إذن إرسال فويس نوت' });
@@ -891,8 +857,7 @@ io.on('connection', (socket) => {
     const { audioData, duration, isPrivate, toUser } = data || {};
     if (!audioData) return;
 
-    // حجم الفويس لازم يكون أقل من 2MB
-    if (audioData.length > 2 * 1024 * 1024 * 1.37) { // 1.37 للـ base64 overhead
+    if (audioData.length > 2 * 1024 * 1024 * 1.37) {
       socket.emit('perm_error', { action: 'voice', msg: '🎙️ حجم الفويس كبير جداً (الحد 2MB)' });
       return;
     }
@@ -904,19 +869,17 @@ io.on('connection', (socket) => {
       role:      sender.role,
       nameColor: sender.nameColor,
       audioData,
-      duration:  Math.min(duration || 0, 120), // حد أقصى 2 دقيقة
+      duration:  Math.min(duration || 0, 120),
       time:      Date.now(),
       isPrivate: !!isPrivate,
     };
 
     if (isPrivate && toUser) {
-      // فويس خاص
       const recv = findUserByName(toUser);
       if (!recv) {
         socket.emit('perm_error', { action: 'voice', msg: '❌ المستخدم غير متصل' });
         return;
       }
-      // نفس فحوصات الخاص
       if (lockedPrivate.has(toUser) && sender.role !== 'owner') {
         socket.emit('perm_error', { action: 'voice', msg: `🔒 ${toUser} أغلق الرسائل الخاصة` });
         return;
@@ -925,9 +888,8 @@ io.on('connection', (socket) => {
       socket.emit('private_voice', msg);
       io.to(recv.socketId).emit('private_voice', msg);
     } else {
-      // فويس عام في الغرفة
       if (!liveRooms[sender.room]) return;
-      liveRooms[sender.room].messages.push({ ...msg, audioData: '[صوت]' }); // نحفظ placeholder بدون الصوت
+      liveRooms[sender.room].messages.push({ ...msg, audioData: '[صوت]' });
       if (liveRooms[sender.room].messages.length > 300)
         liveRooms[sender.room].messages.shift();
       io.to(sender.room).emit('voice_message', msg);
@@ -954,13 +916,11 @@ server.listen(PORT, () => {
 });
 
 // ===================== الفويس نوت =====================
-// المالك يفعّل/يوقف ميزة الفويس نوت
 const voiceSettings = {
-  enabled: false,           // هل الميزة مفعّلة؟
-  allowedUsers: new Set(),  // يوزرنيمات الأعضاء المسموح لهم بالتسجيل
+  enabled: false,
+  allowedUsers: new Set(),
 };
 
-// تفعيل/إيقاف الميزة
 app.post('/api/owner/voice/toggle', authenticateOwner, (req, res) => {
   const { enabled } = req.body || {};
   voiceSettings.enabled = !!enabled;
@@ -968,7 +928,6 @@ app.post('/api/owner/voice/toggle', authenticateOwner, (req, res) => {
   res.json({ ok: true, enabled: voiceSettings.enabled });
 });
 
-// إضافة/إزالة مستخدم من قائمة الفويس
 app.post('/api/owner/voice/allow', authenticateOwner, (req, res) => {
   const { username, allow } = req.body || {};
   if (!username) return res.json({ ok: false, error: 'اسم مطلوب' });
@@ -977,7 +936,6 @@ app.post('/api/owner/voice/allow', authenticateOwner, (req, res) => {
   } else {
     voiceSettings.allowedUsers.delete(username);
   }
-  // إبلاغ المستخدم مباشرة لو أونلاين
   const u = findUserByName(username);
   if (u) {
     io.to(u.socketId).emit('voice_permission_update', { allowed: !!allow });
@@ -985,7 +943,6 @@ app.post('/api/owner/voice/allow', authenticateOwner, (req, res) => {
   res.json({ ok: true, allowed: allow, users: [...voiceSettings.allowedUsers] });
 });
 
-// جلب إعدادات الفويس
 app.get('/api/owner/voice/settings', authenticateOwner, (req, res) => {
   res.json({
     ok: true,
