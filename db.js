@@ -33,6 +33,8 @@ function decryptMsg(data) {
   }
 }
 
+/* ===================== الجداول ===================== */
+
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +66,19 @@ CREATE TABLE IF NOT EXISTS private_messages (
   message TEXT NOT NULL,
   createdAt INTEGER DEFAULT (strftime('%s','now'))
 );
+
+CREATE TABLE IF NOT EXISTS room_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room TEXT NOT NULL,
+  username TEXT NOT NULL,
+  role TEXT,
+  nameColor TEXT,
+  message TEXT NOT NULL,
+  createdAt INTEGER DEFAULT (strftime('%s','now'))
+);
 `);
+
+/* ===================== المستخدمين ===================== */
 
 const USERNAME_RE = /^[\u0600-\u06FFa-zA-Z0-9_\-. ]{3,20}$/;
 
@@ -133,6 +147,8 @@ function unbanUser(username) {
   return { ok: true };
 }
 
+/* ===================== IP & Serial ===================== */
+
 function banIP(ip, reason) {
   db.prepare("INSERT OR REPLACE INTO banned_ips (ip, reason) VALUES (?, ?)")
     .run(ip, reason || 'محظور');
@@ -151,8 +167,7 @@ function isIPBanned(ip) {
 }
 
 function getAllBannedIPs() {
-  return db.prepare("SELECT * FROM banned_ips")
-    .all();
+  return db.prepare("SELECT * FROM banned_ips").all();
 }
 
 function banSerial(serial, reason) {
@@ -173,9 +188,10 @@ function isSerialBanned(serial) {
 }
 
 function getAllBannedSerials() {
-  return db.prepare("SELECT * FROM banned_serials")
-    .all();
+  return db.prepare("SELECT * FROM banned_serials").all();
 }
+
+/* ===================== الرسائل ===================== */
 
 function savePrivateMsg(sender, receiver, text) {
   const key = [sender, receiver].sort().join('__');
@@ -188,13 +204,29 @@ function savePrivateMsg(sender, receiver, text) {
 }
 
 function getAllPrivateChats() {
-  const rows = db.prepare("SELECT * FROM private_messages")
-    .all();
-
+  const rows = db.prepare("SELECT * FROM private_messages").all();
   return rows.map(r => ({
     ...r,
     message: decryptMsg(r.message)
   }));
+}
+
+/* ✅ حفظ رسائل الغرف */
+
+function saveRoomMessage(room, username, role, nameColor, message) {
+  db.prepare(`
+    INSERT INTO room_messages (room, username, role, nameColor, message)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(room, username, role, nameColor, message);
+}
+
+function getRoomMessages(room, limit = 50) {
+  return db.prepare(`
+    SELECT * FROM room_messages
+    WHERE room = ?
+    ORDER BY createdAt DESC
+    LIMIT ?
+  `).all(room, limit).reverse();
 }
 
 module.exports = {
@@ -214,5 +246,7 @@ module.exports = {
   isSerialBanned,
   getAllBannedSerials,
   savePrivateMsg,
-  getAllPrivateChats
+  getAllPrivateChats,
+  saveRoomMessage,
+  getRoomMessages
 };
