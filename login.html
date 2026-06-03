@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>شات لايف — دخول</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:      #4f8ef7;
+      --primary-dark: #2c6ce4;
+      --danger:       #e74c3c;
+      --text:         #222;
+      --text-light:   #888;
+      --border:       #e3e6ef;
+      --bg:           #f5f6fa;
+      --white:        #ffffff;
+      --shadow:       0 8px 32px rgba(79,142,247,0.13);
+      --radius:       16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Tajawal', sans-serif;
+      min-height: 100dvh;
+      background: linear-gradient(135deg, #1a237e 0%, #283593 30%, #3949ab 60%, #4f8ef7 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 80%, rgba(79,142,247,0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(57,73,171,0.3) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .bubble { position: fixed; border-radius: 50%; background: rgba(255,255,255,0.06); animation: float linear infinite; pointer-events: none; }
+    .bubble:nth-child(1) { width:80px;  height:80px;  left:10%; bottom:-100px; animation-duration:12s; }
+    .bubble:nth-child(2) { width:50px;  height:50px;  left:25%; bottom:-100px; animation-duration:9s;  animation-delay:2s; }
+    .bubble:nth-child(3) { width:120px; height:120px; left:55%; bottom:-100px; animation-duration:15s; animation-delay:4s; }
+    .bubble:nth-child(4) { width:40px;  height:40px;  left:70%; bottom:-100px; animation-duration:10s; animation-delay:1s; }
+    .bubble:nth-child(5) { width:90px;  height:90px;  left:85%; bottom:-100px; animation-duration:13s; animation-delay:3s; }
+
+    @keyframes float {
+      0%   { transform: translateY(0) rotate(0deg);     opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 0.5; }
+      100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
+    }
+
+    /* ======= الكارد الرئيسية ======= */
+    .card {
+      background: rgba(255,255,255,0.97);
+      border-radius: 28px;
+      width: 440px;
+      max-width: 100%;
+      box-shadow: var(--shadow);
+      position: relative;
+      z-index: 10;
+      animation: slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+      overflow: hidden;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px) scale(0.95); }
+      to   { opacity: 1; transform: translateY(0)    scale(1); }
+    }
+
+    /* ======= الشاشات ======= */
+    .screen { display: none; }
+    .screen.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ======= شعار ======= */
+    .logo-area {
+      text-align: center;
+      padding: 28px 20px 16px;
+    }
+    .logo-icon {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+      box-shadow: 0 8px 24px rgba(79,142,247,0.4);
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 8px 24px rgba(79,142,247,0.4); }
+      50%       { box-shadow: 0 8px 32px rgba(79,142,247,0.7); }
+    }
+    .logo-title { font-size: 1.4rem; font-weight: 900; color: var(--text); }
+    .logo-sub   { font-size: 0.82rem; color: var(--text-light); margin-top: 3px; }
+
+    /* ======= قائمة الغرف ======= */
+    .rooms-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-light);
+      text-align: center;
+      padding: 0 20px 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .rooms-grid {
+      padding: 0 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .room-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.15s;
+      border: 1.5px solid transparent;
+    }
+    .room-row:hover {
+      background: #f0f5ff;
+      border-color: #d0e2ff;
+      transform: translateX(-3px);
+    }
+    .room-row:active { transform: scale(0.98); }
+
+    .room-icon {
+      font-size: 1.5rem;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .room-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+    .room-arrow {
+      color: #ccc;
+      font-size: 0.8rem;
+    }
+
+    .rooms-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 16px;
+      opacity: 0.6;
+    }
+
+    /* ======= شاشة الدخول ======= */
+    .login-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 20px 20px 0;
+      margin-bottom: 16px;
+    }
+    .btn-back {
+      background: var(--bg);
+      border: none;
+      border-radius: 10px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--text);
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .btn-back:hover { background: #e0e8ff; }
+
+    .selected-room-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #f0f5ff, #e8efff);
+      border: 1.5px solid #d0e2ff;
+      border-radius: 12px;
+      padding: 6px 14px;
+      flex: 1;
+    }
+    .selected-room-badge .r-icon { font-size: 1.2rem; }
+    .selected-room-badge .r-name { font-size: 0.88rem; font-weight: 700; color: var(--primary); }
+
+    /* تبويبات */
+    .tabs {
+      display: flex;
+      background: var(--bg);
+      border-radius: 14px;
+      padding: 4px;
+      margin: 0 20px 18px;
+      gap: 2px;
+    }
+    .tab-btn {
+      flex: 1; padding: 9px 6px;
+      border: none; border-radius: 11px;
+      background: transparent; color: var(--text-light);
+      cursor: pointer; font-family: inherit;
+      font-size: 0.82rem; font-weight: 600;
+      transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .tab-btn.active {
+      background: var(--white); color: var(--primary);
+      box-shadow: 0 2px 12px rgba(79,142,247,0.15);
+      transform: scale(1.02);
+    }
+
+    /* فورم */
+    .form-area { padding: 0 20px 24px; }
+    .tab-content        { display: none; flex-direction: column; gap: 12px; }
+    .tab-content.active { display: flex; animation: fadeIn 0.3s ease; }
+
+    .field { position: relative; }
+    .field-icon {
+      position: absolute; right: 14px; top: 50%;
+      transform: translateY(-50%); font-size: 1rem;
+      pointer-events: none; z-index: 1;
+    }
+    .input {
+      width: 100%; padding: 11px 42px 11px 14px;
+      border: 2px solid var(--border); border-radius: 12px;
+      font-family: inherit; font-size: 0.93rem; color: var(--text);
+      background: var(--bg); outline: none; transition: all 0.2s;
+    }
+    .input:focus { border-color: var(--primary); background: var(--white); box-shadow: 0 0 0 4px rgba(79,142,247,0.1); }
+    .input::placeholder { color: #bbb; }
+
+    .btn-submit {
+      width: 100%; padding: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff; border: none; border-radius: 12px;
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: all 0.25s; margin-top: 2px;
+    }
+    .btn-submit:hover   { filter: brightness(1.08); }
+    .btn-submit:active  { transform: scale(0.98); }
+    .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .btn-guest {
+      width: 100%; padding: 12px;
+      background: transparent; color: var(--primary);
+      border: 2px solid var(--primary); border-radius: 12px;
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s; margin-top: 2px;
+    }
+    .btn-guest:hover { background: rgba(79,142,247,0.07); }
+
+    .msg-box { padding: 9px 14px; border-radius: 10px; font-size: 0.86rem; font-weight: 600; text-align: center; display: none; margin-bottom: 4px; }
+    .msg-box.error   { background: #fff0ef; color: var(--danger); border: 1px solid #ffd5d2; display: block; }
+    .msg-box.success { background: #f0fff4; color: #27ae60; border: 1px solid #b7f5c9; display: block; }
+
+    .divider { display: flex; align-items: center; gap: 12px; color: var(--text-light); font-size: 0.8rem; margin: 2px 0; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-left: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .card-footer { text-align: center; padding: 0 20px 18px; font-size: 0.75rem; color: var(--text-light); }
+
+    @media (max-width: 480px) {
+      .card { border-radius: 22px; }
+      .logo-area { padding: 22px 16px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+
+  <div class="card">
+
+    <!-- ======= شاشة 1: اختيار الغرفة ======= -->
+    <div id="screen-rooms" class="screen active">
+
+      <div class="logo-area">
+        <div class="logo-icon">💬</div>
+        <div class="logo-title">شات لايف</div>
+        <div class="logo-sub">اختر الغرفة للبدء</div>
+      </div>
+
+      <div class="rooms-title">الغرف المتاحة</div>
+
+      <div class="rooms-grid" id="rooms-grid">
+        <!-- يتحشي من JS -->
+      </div>
+
+      <div class="card-footer">شات لايف &copy; 2025 — جميع الحقوق محفوظة</div>
+    </div>
+
+    <!-- ======= شاشة 2: تسجيل الدخول ======= -->
+    <div id="screen-login" class="screen">
+
+      <div class="login-header">
+        <button class="btn-back" onclick="goBack()" title="رجوع">◀</button>
+        <div class="selected-room-badge">
+          <span class="r-icon" id="sel-room-icon"></span>
+          <span class="r-name" id="sel-room-name"></span>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">تسجيل دخول</button>
+        <button class="tab-btn"        onclick="switchTab('register')">حساب جديد</button>
+        <button class="tab-btn"        onclick="switchTab('guest')">زائر</button>
+      </div>
+
+      <div class="form-area">
+        <div id="msg-box" class="msg-box"></div>
+
+        <!-- دخول -->
+        <div id="tab-login" class="tab-content active">
+          <div class="field">
+            <span class="field-icon">👤</span>
+            <input id="login-user" type="text" placeholder="اسم المستخدم" class="input" autocomplete="username">
+          </div>
+          <div class="field">
+            <span class="field-icon">🔒</span>
+            <input id="login-pass" type="password" placeholder="كلمة المرور" class="input" autocomplete="current-password">
+          </div>
+          <button class="btn-submit" id="btn-login" onclick="doLogin()">دخول</button>
+        </div>
+
+        <!-- تسجيل -->
+        <div id="tab-register" class="tab-content">
+          <div class="field">
+            <span class="field-icon">👤</span>
+            <input id="reg-user" type="text" placeholder="اسم المستخدم (3 أحرف على الأقل)" class="input" autocomplete="username">
+          </div>
+          <div class="field">
+            <span class="field-icon">🔒</span>
+            <input id="reg-pass" type="password" placeholder="كلمة المرور (6 أحرف على الأقل)" class="input" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <span class="field-icon">🔒</span>
+            <input id="reg-pass2" type="password" placeholder="تأكيد كلمة المرور" class="input" autocomplete="new-password">
+          </div>
+          <button class="btn-submit" id="btn-register" onclick="doRegister()">إنشاء حساب</button>
+        </div>
+
+        <!-- زائر -->
+        <div id="tab-guest" class="tab-content">
+          <div class="field">
+            <span class="field-icon">🙂</span>
+            <input id="guest-name" type="text" placeholder="اسمك (اختياري)" class="input" maxlength="20">
+          </div>
+          <div class="divider">أو ادخل مباشرة</div>
+          <button class="btn-guest" onclick="doGuest()">🚀 دخول كزائر</button>
+        </div>
+      </div>
+
+      <div class="card-footer">شات لايف &copy; 2025 — جميع الحقوق محفوظة</div>
+    </div>
+
+  </div><!-- /card -->
+
+  <script>
+    // ===================== الغرف =====================
+    const ROOMS = [
+      { id: 'arabs',     name: 'كل العرب',      icon: '🌍' },
+      { id: 'romantic',  name: 'رومانسية',       icon: '❤️' },
+      { id: 'youth',     name: 'شباب و بنات',    icon: '👫' },
+      { id: 'butterfly', name: 'فرفشة',          icon: '🦋' },
+      { id: 'gulf',      name: 'الخليج',         icon: '🌐' },
+      { id: 'help',      name: 'غرفة المساعدة',  icon: '💬' },
+      { id: 'egypt',     name: 'مصر',            icon: '🇪🇬' },
+      { id: 'palestine', name: 'فلسطين',         icon: '🇵🇸' },
+      { id: 'syria',     name: 'سوريا',          icon: '🇸🇾' },
+      { id: 'lebanon',   name: 'لبنان',          icon: '🇱🇧' },
+      { id: 'algeria',   name: 'الجزائر',        icon: '🇩🇿' },
+      { id: 'morocco',   name: 'المغرب',         icon: '🇲🇦' },
+      { id: 'saudi',     name: 'السعودية',       icon: '🇸🇦' },
+      { id: 'libya',     name: 'ليبيا',          icon: '🇱🇾' },
+      { id: 'iraq',      name: 'العراق',         icon: '🇮🇶' },
+    ];
+
+    // الغرف اللي موجودة فعلاً في السيرفر (أول 5 هي الثابتة)
+    const SERVER_ROOMS = ['egypt', 'arabs', 'youth', 'butterfly', 'romantic'];
+
+    let selectedRoom = null;
+
+    // رسم قائمة الغرف
+    function renderRooms() {
+      const grid = document.getElementById('rooms-grid');
+      grid.innerHTML = '';
+      ROOMS.forEach((room, i) => {
+        // فاصل بعد 6 عناصر
+        if (i > 0 && i % 6 === 0) {
+          const div = document.createElement('div');
+          div.className = 'rooms-divider';
+          grid.appendChild(div);
+        }
+        const row = document.createElement('div');
+        row.className = 'room-row';
+        row.innerHTML = `
+          <div class="room-icon">${room.icon}</div>
+          <div class="room-name">${room.name}</div>
+          <div class="room-arrow">&#8249;</div>
+        `;
+        row.onclick = () => selectRoom(room);
+        grid.appendChild(row);
+      });
+    }
+
+    function selectRoom(room) {
+      selectedRoom = room;
+      document.getElementById('sel-room-icon').textContent = room.icon;
+      document.getElementById('sel-room-name').textContent = room.name;
+      showScreen('screen-login');
+      clearMsg();
+    }
+
+    function goBack() {
+      showScreen('screen-rooms');
+      clearMsg();
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ===================== تبويبات =====================
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', ['login','register','guest'][i] === tab);
+      });
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      clearMsg();
+    }
+
+    function showMsg(text, type) {
+      const el = document.getElementById('msg-box');
+      el.textContent = text;
+      el.className   = `msg-box ${type}`;
+    }
+    function clearMsg() {
+      const el = document.getElementById('msg-box');
+      if (!el) return;
+      el.textContent = '';
+      el.className   = 'msg-box';
+    }
+
+    function setLoading(btnId, loading) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.disabled = loading;
+      if (loading) {
+        btn.dataset.original = btn.textContent;
+        btn.innerHTML = btn.dataset.original + ' <span class="spinner"></span>';
+      } else {
+        btn.innerHTML = btn.dataset.original || btn.innerHTML;
+      }
+    }
+
+    // ===================== Device =====================
+    function getDeviceInfo() {
+      const ua = navigator.userAgent;
+      return {
+        userAgent: ua,
+        platform:  navigator.platform,
+        language:  navigator.language,
+        screen:    `${screen.width}x${screen.height}`,
+        timezone:  Intl.DateTimeFormat().resolvedOptions().timeZone,
+        isMobile:  /Mobi|Android/i.test(ua),
+        os: /Windows/i.test(ua) ? 'Windows'
+          : /Mac/i.test(ua)     ? 'macOS'
+          : /Android/i.test(ua) ? 'Android'
+          : /iPhone|iPad/i.test(ua) ? 'iOS'
+          : /Linux/i.test(ua)   ? 'Linux' : 'Unknown',
+        browser: /Chrome/i.test(ua) && !/Edg/i.test(ua) ? 'Chrome'
+               : /Firefox/i.test(ua)  ? 'Firefox'
+               : /Safari/i.test(ua) && !/Chrome/i.test(ua) ? 'Safari'
+               : /Edg/i.test(ua)    ? 'Edge' : 'Other',
+      };
+    }
+    function getFingerprint(info) {
+      const str = JSON.stringify(info);
+      let h = 0;
+      for (let i = 0; i < str.length; i++) { h = (h << 5) - h + str.charCodeAt(i); h |= 0; }
+      return Math.abs(h).toString(16).padStart(8, '0');
+    }
+
+    function saveSession(data) {
+      // نحفظ الغرفة المختارة في الـ session
+      data.selectedRoom = selectedRoom ? selectedRoom.id : 'egypt';
+      // لو الغرفة مش موجودة في السيرفر، نوديه لمصر كـ default
+      if (!SERVER_ROOMS.includes(data.selectedRoom)) {
+        data.selectedRoom = 'egypt';
+      }
+      sessionStorage.setItem('livechat_auth', JSON.stringify(data));
+    }
+
+    // ===================== دخول =====================
+    async function doLogin() {
+      const username = document.getElementById('login-user').value.trim();
+      const password = document.getElementById('login-pass').value;
+      if (!username || !password) return showMsg('أدخل اسم المستخدم وكلمة المرور', 'error');
+
+      setLoading('btn-login', true);
+      clearMsg();
+
+      const info    = getDeviceInfo();
+      const payload = {
+        type: 'login', username, password, isGuest: false,
+        fingerprint: getFingerprint(info), deviceInfo: info,
+      };
+
+      try {
+        const res = await fetch('/api/login', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ username, password }),
+        }).then(r => r.json());
+
+        if (res.ok) {
+          if (res.user?.role === 'owner') {
+            try {
+              const tokenRes = await fetch('/api/owner/login', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ username, password }),
+              }).then(r => r.json());
+              if (tokenRes.ok) payload.ownerToken = tokenRes.token;
+            } catch (_) {}
+          }
+          saveSession(payload);
+          window.location.href = 'index.html';
+        } else {
+          showMsg(res.error || 'فشل تسجيل الدخول', 'error');
+        }
+      } catch {
+        showMsg('تعذّر الاتصال بالخادم', 'error');
+      }
+      setLoading('btn-login', false);
+    }
+
+    // ===================== تسجيل =====================
+    async function doRegister() {
+      const username  = document.getElementById('reg-user').value.trim();
+      const password  = document.getElementById('reg-pass').value;
+      const password2 = document.getElementById('reg-pass2').value;
+
+      if (!username || !password)   return showMsg('أدخل اسم المستخدم وكلمة المرور', 'error');
+      if (username.length < 3)      return showMsg('الاسم يجب أن يكون 3 أحرف على الأقل', 'error');
+      if (password.length < 6)      return showMsg('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+      if (password !== password2)   return showMsg('كلمة المرور غير متطابقة', 'error');
+
+      setLoading('btn-register', true);
+      clearMsg();
+
+      try {
+        const res = await fetch('/api/register', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ username, password }),
+        }).then(r => r.json());
+
+        if (res.ok) {
+          showMsg('✅ تم التسجيل بنجاح! جاري الدخول...', 'success');
+          setTimeout(() => {
+            const info    = getDeviceInfo();
+            const payload = { type: 'login', username, password, isGuest: false, fingerprint: getFingerprint(info), deviceInfo: info };
+            saveSession(payload);
+            window.location.href = 'index.html';
+          }, 1200);
+        } else {
+          showMsg(res.error || 'حدث خطأ أثناء التسجيل', 'error');
+        }
+      } catch {
+        showMsg('تعذّر الاتصال بالخادم', 'error');
+      }
+      setLoading('btn-register', false);
+    }
+
+    // ===================== زائر =====================
+    function doGuest() {
+      const username = document.getElementById('guest-name').value.trim() || `زائر_${Math.floor(Math.random() * 9999)}`;
+      const info     = getDeviceInfo();
+      const payload  = { type: 'guest', username, isGuest: true, fingerprint: getFingerprint(info), deviceInfo: info };
+      saveSession(payload);
+      window.location.href = 'index.html';
+    }
+
+    // ===================== Enter =====================
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const active = document.querySelector('.tab-content.active');
+      if (!active) return;
+      if (active.id === 'tab-login')    doLogin();
+      else if (active.id === 'tab-register') doRegister();
+      else if (active.id === 'tab-guest')    doGuest();
+    });
+
+    // ===================== Init =====================
+    if (sessionStorage.getItem('livechat_auth')) {
+      window.location.href = 'index.html';
+    }
+
+    const urlErr = new URLSearchParams(location.search).get('error');
+    if (urlErr) showMsg(decodeURIComponent(urlErr), 'error');
+
+    renderRooms();
+  </script>
+</body>
+</html>
